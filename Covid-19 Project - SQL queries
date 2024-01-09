@@ -1,0 +1,263 @@
+-- Queries used in postgreSQL and for Tableau project
+
+-- 1. Creates the CovidDeaths table to store COVID-19 related data
+
+CREATE TABLE CovidDeaths (
+    iso_code VARCHAR(50),
+    continent VARCHAR(50),
+    "location" VARCHAR(50),
+    "date" VARCHAR(50),
+    population VARCHAR(50),
+    total_cases VARCHAR(50),
+    new_cases VARCHAR(50),
+    new_cases_smoothed VARCHAR(50),
+    total_deaths VARCHAR(50),
+    new_deaths VARCHAR(50),
+    new_deaths_smoothed VARCHAR(50),
+    total_cases_per_million VARCHAR(50),
+    new_cases_per_million VARCHAR(50),
+    new_cases_smoothed_per_million VARCHAR(50),
+    total_deaths_per_million VARCHAR(50),
+    new_deaths_per_million VARCHAR(50),
+    new_deaths_smoothed_per_million VARCHAR(50),
+    reproduction_rate VARCHAR(50),
+    icu_patients VARCHAR(50),
+    icu_patients_per_million VARCHAR(50),
+    hosp_patients VARCHAR(50),
+    hosp_patients_per_million VARCHAR(50),
+    weekly_icu_admissions VARCHAR(50),
+    weekly_icu_admissions_per_million VARCHAR(50),
+    weekly_hosp_admissions VARCHAR(50),
+    weekly_hosp_admissions_per_million VARCHAR(50)
+);
+
+
+
+-- 2. Creates the CovidVaccination table to hold detailed data on COVID-19 testing and vaccination
+
+CREATE TABLE CovidVaccination(
+    iso_code VARCHAR(50),	
+    continent VARCHAR(50),	
+    "location" VARCHAR(50),	
+    "date" VARCHAR(50),	
+    total_tests VARCHAR(50),	
+    new_tests VARCHAR(50),	
+    total_tests_per_thousand VARCHAR(50),	
+    new_tests_per_thousand VARCHAR(50),	
+    new_tests_smoothed VARCHAR(50),	
+    new_tests_smoothed_per_thousand VARCHAR(50),	
+    positive_rate VARCHAR(50),	
+    tests_per_case VARCHAR(50),	
+    tests_units VARCHAR(50),
+    total_vaccinations VARCHAR(50),	
+    people_vaccinated VARCHAR(50),	
+    people_fully_vaccinated VARCHAR(50),	
+    total_boosters VARCHAR(50),	
+    new_vaccinations VARCHAR(50),	
+    new_vaccinations_smoothed VARCHAR(50),	
+    total_vaccinations_per_hundred VARCHAR(50),	
+    people_vaccinated_per_hundred VARCHAR(50),	
+    people_fully_vaccinated_per_hundred VARCHAR(50),	
+    total_boosters_per_hundred VARCHAR(50),	
+    new_vaccinations_smoothed_per_million VARCHAR(50),	
+    new_people_vaccinated_smoothed VARCHAR(50),	
+    new_people_vaccinated_smoothed_per_hundred VARCHAR(50),	
+    stringency_index VARCHAR(50),	
+    population_density VARCHAR(50),	
+    median_age VARCHAR(50),	
+    aged_65_older VARCHAR(50),	
+    aged_70_older VARCHAR(50),	
+    gdp_per_capita VARCHAR(50),	
+    extreme_poverty VARCHAR(50),	
+    cardiovasc_death_rate VARCHAR(50),	
+    diabetes_prevalence VARCHAR(50),	
+    female_smokers VARCHAR(50),	
+    male_smokers VARCHAR(50),	
+    handwashing_facilities VARCHAR(50),	
+    hospital_beds_per_thousand VARCHAR(50),	
+    life_expectancy VARCHAR(50),	
+    human_development_index VARCHAR(50),	
+    excess_mortality_cumulative_absolute VARCHAR(50),	
+    excess_mortality_cumulative VARCHAR(50),	
+    excess_mortality VARCHAR(50),	
+    excess_mortality_cumulative_per_million VARCHAR(50)
+);
+
+
+
+-- 3. Query for changing data types / can be used for any column
+
+ALTER TABLE "CovidDeaths"
+ALTER COLUMN population TYPE NUMERIC USING population::NUMERIC,
+ALTER COLUMN total_deaths TYPE NUMERIC USING total_deaths::NUMERIC,
+ALTER COLUMN total_cases TYPE NUMERIC USING total_cases::NUMERIC;
+
+
+
+-- 4. Data overview
+
+SELECT location, "date", total_cases, new_cases, total_deaths, population
+FROM "CovidDeaths"
+WHERE continent IS NOT NULL
+ORDER BY 1, 2;
+
+
+
+-- 5. Total Cases vs Total Deaths in the Czech Republic 
+
+SELECT location, "date", total_cases, total_deaths, (total_deaths / total_cases) * 100 AS DeathPercentage
+FROM "CovidDeaths"
+WHERE location LIKE '%Czech%'
+ORDER BY 1, 2;
+
+
+
+-- 6. Total Cases vs Population
+-- Shows what percentage of population got Covid
+
+SELECT location, "date", population, total_cases, (total_cases / population) * 100 AS PercentPopulationInfected
+FROM "CovidDeaths"
+WHERE location LIKE '%Czech%'
+AND continent IS NOT NULL
+ORDER BY 1, 2;
+
+
+
+-- 7.Countries with Highest Infection Rate compared to Population
+
+SELECT "location", population, MAX(total_cases) AS HighestInfectionCount, MAX((total_cases / population)) * 100 AS PercentPopulationInfected
+FROM "CovidDeaths"
+--WHERE location LIKE '%Czech%'
+GROUP BY "location", population 
+ORDER BY PercentPopulationInfected DESC;
+
+
+
+-- 8. Countries with the Highest Death Count per Popuilation
+
+SELECT "location", MAX(total_deaths) AS TotalDeathCount
+FROM "CovidDeaths"
+--WHERE location LIKE '%Czech%'
+WHERE continent IS NOT NULL AND total_deaths IS NOT NULL
+GROUP BY "location"
+ORDER BY TotalDeathCount DESC;
+
+
+
+-- 9. Continents with the highest death count per population
+
+SELECT 
+    "location", 
+    MAX(total_deaths) AS TotalDeathCount
+FROM 
+    "CovidDeaths"
+WHERE 
+    continent IS NULL 
+    AND total_deaths IS NOT NULL 
+    AND "location" != 'High income'
+    AND "location" != 'Upper middle income'
+    AND "location" != 'Lower middle income'
+    AND "location" != 'Low income'
+-- AND location LIKE '%states%'
+GROUP BY 
+    "location"
+ORDER BY 
+    TotalDeathCount DESC;
+
+
+
+-- 10. Death Percentage by date
+
+SELECT 
+    "date", 
+    SUM(new_cases::numeric) AS TotalCases, 
+    SUM(new_deaths::numeric) AS TotalDeaths, 
+    CASE 
+        WHEN SUM(new_cases::numeric) = 0 THEN NULL
+        ELSE (SUM(new_deaths::numeric) / SUM(new_cases::numeric)) * 100 
+    END AS DeathPercentage
+FROM 
+    "CovidDeaths"
+WHERE 
+    continent IS NOT NULL
+GROUP BY 
+    "date"
+ORDER BY 
+    1, 2;
+
+
+
+-- 11. Total Death Percentage
+
+SELECT 
+    SUM(new_cases::numeric) AS TotalCases, 
+    SUM(new_deaths::numeric) AS TotalDeaths, 
+    CASE 
+        WHEN SUM(new_cases::numeric) = 0 THEN NULL
+        ELSE (SUM(new_deaths::numeric) / SUM(new_cases::numeric)) * 100 
+    END AS DeathPercentage
+FROM 
+    "CovidDeaths"
+WHERE 
+    continent IS NOT NULL
+ORDER BY 
+    1, 2;
+
+
+
+-- 12. Total Population vs Vaccinations
+
+SELECT 
+    dea.continent, 
+    dea.location, 
+    dea.date, 
+    dea.population, 
+    vac.new_vaccinations,
+    SUM(vac.new_vaccinations::numeric) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+FROM 
+    "CovidDeaths" dea 
+JOIN 
+    "CovidVaccinations" vac ON dea.location = vac.location AND dea.date = vac.date
+WHERE 
+    dea.continent IS NOT NULL
+ORDER BY 
+    2, 3;
+
+
+
+-- 13. CTE
+
+WITH PopvsVac (continent, "location", "date", population, new_vaccinations, RollingPeopleVaccinated) AS
+(
+    SELECT 
+        dea.continent, 
+        dea.location, 
+        dea.date, 
+        dea.population, 
+        vac.new_vaccinations,
+        SUM(vac.new_vaccinations::numeric) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+    FROM 
+        "CovidDeaths" dea 
+    JOIN 
+        "CovidVaccinations" vac ON dea.location = vac.location AND dea.date = vac.date
+    WHERE 
+        dea.continent IS NOT NULL
+)
+SELECT *, (RollingPeopleVaccinated / population) * 100
+FROM PopvsVac;
+
+
+
+-- 14. View to store data for later visualisations 
+
+CREATE VIEW PercentPopulationVaccinated AS 
+SELECT 
+    dea.continent, 
+    dea.location, 
+    dea.date, 
+    dea.population, 
+    vac.new_vaccinations,
+    SUM(vac.new_vaccinations::numeric) OVER (PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
+FROM 
+    "CovidDeaths
+
